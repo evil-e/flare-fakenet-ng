@@ -12,6 +12,7 @@ import sys
 import time
 import netifaces
 import threading
+import json
 
 from collections import OrderedDict
 
@@ -286,6 +287,7 @@ def main():
     parser.add_option("-l", "--log-file", action="store", dest="log_file")
     parser.add_option("-f", "--stop-flag", action="store", dest="stop_flag",
                       help="terminate if stop flag file is created")
+    parser.add_option("-r", "--resp-config", action="store", dest="resp_config", help="Specify a custom response configuration for the HTTP Listener")
 
     (options, args) = parser.parse_args()
 
@@ -302,6 +304,25 @@ def main():
     if options.stop_flag:
         options.stop_flag = os.path.expandvars(options.stop_flag)
         fakenet.logger.info('Will seek stop flag at %s' % (options.stop_flag))
+
+    if options.resp_config:
+        try:
+            with open(options.resp_config, 'r') as file:
+                options.resp_config_data = json.load(file)
+        except:
+            fakenet.logger.info('failed to load custom response file %s' % (options.resp_config))
+            options.resp_config_data = None
+
+        ### HACK
+        fakenet.listeners_config['HTTPListener80']['resp_config_data'] = options.resp_config_data
+        fakenet.listeners_config['HTTPListener443']['resp_config_data'] = options.resp_config_data
+        if os.path.dirname(options.resp_config) == '':
+            fakenet.listeners_config['HTTPListener80']['resp_config'] = os.getcwd()
+            fakenet.listeners_config['HTTPListener443']['resp_config'] = os.getcwd()
+        else:
+            fakenet.listeners_config['HTTPListener80']['resp_config'] = os.path.dirname(options.resp_config)
+            fakenet.listeners_config['HTTPListener443']['resp_config'] = os.path.dirname(options.resp_config)
+        ### END HACK
 
     fakenet.start()
 
